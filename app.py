@@ -1,21 +1,50 @@
 import dearpygui.dearpygui as dpg
-import datetime
 
-# ---------- Page Management ----------
-pages = ["widgets_page", "devices_page", "media_page", "climate_page", "security_page", "system_page"]
+# Widget imports
+from widgets.datetime import build_datetime
+from widgets.status import build_status
+from widgets.to_do import build_todo
+from widgets.contacts import build_contacts
+
+# ---------- Globals ----------
+pages = ["home_page", "devices_page", "media_page", "climate_page", "security_page", "system_page"]
 current_page_index = 0
+dark_mode_enabled = False
+current_theme = None
 
-# ---------- Theme ----------
+# ---------- THEME ----------
 def apply_theme():
+    global current_theme
+    if current_theme:
+        dpg.delete_item(current_theme)
+
     with dpg.theme() as theme:
         with dpg.theme_component(dpg.mvAll):
-            dpg.add_theme_color(dpg.mvThemeCol_WindowBg, (248, 248, 248))
+            bg_color = (34, 34, 34) if dark_mode_enabled else (248, 248, 248)
+            text_color = (255, 255, 255) if dark_mode_enabled else (0, 0, 0)
+            dpg.add_theme_color(dpg.mvThemeCol_WindowBg, bg_color)
+            dpg.add_theme_color(dpg.mvThemeCol_ChildBg, bg_color)
+            dpg.add_theme_color(dpg.mvThemeCol_Text, text_color)
             dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 15)
             dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 12, 12)
             dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, 10, 10)
-    return theme
 
-# ---------- Page Switching ----------
+        with dpg.theme_component(dpg.mvButton):
+            if dark_mode_enabled:
+                dpg.add_theme_color(dpg.mvThemeCol_Button, (238, 238, 238))
+                dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (220, 220, 220))
+                dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, (200, 200, 200))
+                dpg.add_theme_color(dpg.mvThemeCol_Text, (0, 0, 0))
+            else:
+                dpg.add_theme_color(dpg.mvThemeCol_Button, (51, 51, 51))
+                dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (70, 70, 70))
+                dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, (90, 90, 90))
+                dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 255, 255))
+
+    dpg.bind_theme(theme)
+    current_theme = theme
+
+# ---------- PAGE SWITCHING ----------
 def show_page(index):
     for i, page in enumerate(pages):
         dpg.configure_item(page, show=(i == index))
@@ -25,75 +54,70 @@ def navigate_to_page(sender, app_data, user_data):
     current_page_index = user_data
     show_page(current_page_index)
 
-# ---------- Widgets Page (Home) ----------
-def create_widgets_page():
-    dpg.add_text("Widgets Dashboard", color=(20, 20, 20))
-    dpg.add_separator()
+def toggle_theme(sender, app_data):
+    global dark_mode_enabled
+    dark_mode_enabled = app_data
+    apply_theme()
 
-    now = datetime.datetime.now()
-    date_string = now.strftime("%A, %B %d")
-    time_string = now.strftime("%I:%M %p")
+# ---------- HOME PAGE ----------
+def create_home_page():
+    with dpg.table(header_row=False, resizable=True, policy=dpg.mvTable_SizingStretchProp,
+                   borders_innerH=True, borders_innerV=True, borders_outerH=True, borders_outerV=True):
+        dpg.add_table_column()
+        dpg.add_table_column()
 
-    with dpg.group(horizontal=True):
-        with dpg.child_window(width=450, height=150):
-            dpg.add_text(date_string, bullet=True)
-            dpg.add_text(time_string, bullet=True)
-            dpg.add_spacer(height=10)
-            dpg.add_text("Weather: Sunny, 73°F")
+        with dpg.table_row():
+            with dpg.child_window(height=150):
+                build_datetime()
+            with dpg.child_window(height=150):
+                build_status()
 
-        with dpg.child_window(width=450, height=150):
-            dpg.add_text("Calendar / To-Do")
-            dpg.add_separator()
-            dpg.add_text("- 10 AM: HVAC Maintenance")
-            dpg.add_text("- 1 PM: Package Delivery")
-            dpg.add_text("- 4 PM: Water Plants")
+        with dpg.table_row():
+            with dpg.child_window(height=250):
+                build_todo()
+            with dpg.child_window(height=250):
+                build_contacts()
 
-    dpg.add_spacer(height=15)
-
-    with dpg.child_window(width=-1, height=150):
-        dpg.add_text("Status Summary")
-        dpg.add_separator()
-        dpg.add_text("Lights On: 2 / 6")
-        dpg.add_text("Doors Locked: Yes")
-        dpg.add_text("Thermostat: 72°F")
-        dpg.add_text("Media: Idle")
-
-# ---------- Placeholder Pages ----------
+# ---------- PLACEHOLDER PAGES ----------
 def placeholder_page(name):
     dpg.add_text(f"{name} Page")
 
-# ---------- Build Layout ----------
+# ---------- BUILD LAYOUT ----------
 def build_layout():
     with dpg.window(tag="main_window"):
         with dpg.group(horizontal=True):
-            with dpg.child_window(width=150, autosize_y=True):
+            with dpg.child_window(width=160, autosize_y=True):
                 dpg.add_text("Menu")
                 dpg.add_separator()
-                for i, label in enumerate(["Widgets", "Devices", "Media", "Climate", "Security", "System"]):
+
+                for i, label in enumerate(["Home", "Devices", "Media", "Climate", "Security", "System"]):
                     dpg.add_button(label=label, width=-1, callback=navigate_to_page, user_data=i)
 
-            with dpg.group():
-                with dpg.child_window(tag="widgets_page", width=800, height=550, show=True):
-                    create_widgets_page()
-                with dpg.child_window(tag="devices_page", width=800, height=550, show=False):
+                dpg.add_spacer(height=20)
+                dpg.add_checkbox(label="Dark Mode", default_value=False, callback=toggle_theme)
+
+            with dpg.child_window(autosize_x=True, autosize_y=True):
+                with dpg.group(tag="home_page", show=True):
+                    create_home_page()
+                with dpg.group(tag="devices_page", show=False):
                     placeholder_page("Devices")
-                with dpg.child_window(tag="media_page", width=800, height=550, show=False):
+                with dpg.group(tag="media_page", show=False):
                     placeholder_page("Media")
-                with dpg.child_window(tag="climate_page", width=800, height=550, show=False):
+                with dpg.group(tag="climate_page", show=False):
                     placeholder_page("Climate")
-                with dpg.child_window(tag="security_page", width=800, height=550, show=False):
+                with dpg.group(tag="security_page", show=False):
                     placeholder_page("Security")
-                with dpg.child_window(tag="system_page", width=800, height=550, show=False):
+                with dpg.group(tag="system_page", show=False):
                     placeholder_page("System")
 
-# ---------- Main ----------
-dpg.create_context()
-theme = apply_theme()
-dpg.create_viewport(title="Smart Home Dashboard", width=1000, height=600)
-dpg.setup_dearpygui()
-build_layout()
-dpg.bind_theme(theme)
-dpg.set_primary_window("main_window", True)
-dpg.show_viewport()
-dpg.start_dearpygui()
-dpg.destroy_context()
+# ---------- MAIN ----------
+if __name__ == "__main__":
+    dpg.create_context()
+    dpg.create_viewport(title="Smart Home Dashboard", width=1280, height=720)
+    dpg.setup_dearpygui()
+    build_layout()
+    apply_theme()
+    dpg.set_primary_window("main_window", True)
+    dpg.show_viewport()
+    dpg.start_dearpygui()
+    dpg.destroy_context()
